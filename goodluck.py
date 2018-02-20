@@ -6,10 +6,12 @@ import numpy as np
 from astropy.io import fits
 from matplotlib import pyplot as plt
 from pylab import *
+import pickle
 from pybrain.tools.shortcuts import buildNetwork
 from pybrain.supervised.trainers.backprop import BackpropTrainer
 from pybrain.datasets.supervised import SupervisedDataSet
 from pybrain.structure import TanhLayer # or other types
+
 
 def normalise(m,m_min=[],m_max=[]):
     '''
@@ -29,16 +31,19 @@ def normalise(m,m_min=[],m_max=[]):
     return m, m_min, m_max
 
 '''training dataset with random phase screens (2018.01.17)'''
+mx = np.abs(trnslos_all).max()
+ntrnslos_all = trnslos_all/mx
 n_frame = 20
+norm_inp = ntrnslos_all[:,:n_frame*72]
 trnds = SupervisedDataSet(72*n_frame,1)
-norm_inp, trnslos_min, trnslos_max = normalise(trnslos)
+#norm_inp, trnslos_min, trnslos_max = normalise(trnslos)
 trnds.setField('input',norm_inp)
 trn_tar = np.empty([6000,1])
-trn_tar[:,0] = np.arange(5,11).repeat(1000)
-trnds.setField('target',trn_tar/15)
+trn_tar[:,0] = np.arange(5,11).repeat(1000)/15
+trnds.setField('target',trn_tar)
 
 '''learning process'''
-net = buildNetwork(72*n_frame, 40, 1, hiddenclass = TanhLayer)
+net = buildNetwork(72*n_frame, 1000, 1, hiddenclass = TanhLayer)
 lr = 0.001
 momentum = 0
 lrdecay = 1
@@ -47,18 +52,4 @@ t = BackpropTrainer(net, trnds, learningrate=lr, lrdecay=lrdecay,
                  momentum=momentum, verbose=True, batchlearning=False,
                  weightdecay=wdecay)
 
-trnerr, vderr, trnData, vdData =  t.trainUntilConvergence(maxEpochs=200,validationProportion=0.1)
-
-'''mini-batch learning'''
-#inp_batch, permutation = trnds.randomBatches('input',10)
-#tar_batch = trnds.batches('target',10,permutation)
-#mini_batch = zip(inp_batch, tar_batch)
-#maxepoch = 100
-#sub_ds = SupervisedDataSet(72*n_frame,1)
-#t = BackpropTrainer(net, None, learningrate = 0.0001, momentum = 0.1, verbose = True, batchlearning = True)
-#for epoch in xrange(maxepoch):
-#    for sub_inp, sub_tar in mini_batch:
-#        sub_ds.setField('input',sub_inp)
-#        sub_ds.setField('target',sub_tar)
-#        t.ds = sub_ds
-#        t.train()
+trnerr, vderr, trnData, vdData =  t.trainUntilConvergence(maxEpochs=30,validationProportion=0.1)
